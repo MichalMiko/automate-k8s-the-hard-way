@@ -1,0 +1,54 @@
+---
+- name: Create network(s)
+  hosts: localhost
+  gather_facts: no
+  connection: local
+#https://docs.ansible.com/ansible/2.5/modules/gce_net_module.html
+  vars:
+    service_account_email: test-289@mm-k8s-hard-way.iam.gserviceaccount.com
+    credentials_file: /home/miko/git/ansible/mm-k8s-hard-way-84f07b888437.json
+    project_id: mm-k8s-hard-way
+    region: us-west1
+
+  tasks:
+    - name: Create kubernetes-the-hard-way Custom Network
+      gce_net:
+          service_account_email: "{{ service_account_email }}"
+          credentials_file: "{{ credentials_file }}"
+          project_id: "{{ project_id }}"
+          name: kubernetes-the-hard-way
+          mode: custom
+          subnet_name: "kubernetes"
+          subnet_region: "{{ region }}"
+          ipv4_range: '10.240.0.0/24'
+
+    - name: Create a firewall rule that allows internal communication across all protocols
+      gce_net:
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        name: kubernetes-the-hard-way
+        fwname: "kubernetes-the-hard-way-allow-internal"
+        allowed: tcp;udp;icmp
+        state: "present"
+        src_range: ['10.240.0.0/24','10.200.0.0/16']
+
+    - name: Create a firewall rule that allows external SSH, ICMP, and HTTPS
+      gce_net:
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        name: kubernetes-the-hard-way
+        fwname: "kubernetes-the-hard-way-allow-external"
+        allowed: tcp:22;tcp:6443;icmp
+        state: "present"
+        src_range: ['0.0.0.0/0']
+
+      name: Allocate a static IP address that will be attached to the external load balancer
+    - gce_eip:
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        name: kubernetes-the-hard-way
+        region: "{{ region }}"
+        state: present

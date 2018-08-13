@@ -1,0 +1,114 @@
+---
+- name: Create instances(s)
+  hosts: localhost
+  vars:
+    region: us-west1
+    zone: us-west1-c
+  vars_files:
+    - "vars/gce_auth.yml"
+  tasks:
+    - name: Create 3 Kubernetes Controllers
+      gce:
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        zone: "{{ zone }}"
+        name: controller
+        num_instances: 3
+        machine_type: n1-standard-1
+        disk_size: 100
+        image_family: ubuntu-1804-lts
+        ip_forward: true
+        state: present
+        service_account_permissions: compute-rw,storage-ro,service-management,service-control,logging-write,monitoring
+        network: kubernetes-the-hard-way
+        subnetwork: kubernetes
+        tags:
+          - kubernetes-the-hard-way
+          - controller
+      register: gce
+
+    - name: Create 3 Kubernetes Workers
+      gce:
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        zone: "{{ zone }}"
+        name: worker-{{ item }}
+        machine_type: n1-standard-1
+        disk_size: 100
+        image_family: ubuntu-1804-lts
+        ip_forward: true
+        state: present
+        metadata: '{"pod-cidr":"10.200.{{ item }}.0/24"}'
+        service_account_permissions: compute-rw,storage-ro,service-management,service-control,logging-write,monitoring
+        network: kubernetes-the-hard-way
+        subnetwork: kubernetes
+        tags:
+          - kubernetes-the-hard-way
+          - worker
+      register: gce
+      with_items:
+         - 0
+         - 1
+         - 2
+    # - name: Create 3 Kubernetes Workers
+    #   gce:
+    #     service_account_email: "{{ service_account_email }}"
+    #     credentials_file: "{{ credentials_file }}"
+    #     project_id: "{{ project_id }}"
+    #     zone: "{{ zone }}"
+    #     name: worker
+    #     num_instances: 3
+    #     machine_type: n1-standard-1
+    #     disk_size: 100
+    #     image_family: ubuntu-1804-lts
+    #     ip_forward: true
+    #     state: present
+    #     metadata: '{"pod-cidr":"postgres", "group":"qa", "id":500}'
+    #     service_account_permissions: compute-rw,storage-ro,service-management,service-control,logging-write,monitoring
+    #     network: kubernetes-the-hard-way
+    #     subnetwork: kubernetes
+    #     tags:
+    #       - kubernetes-the-hard-way
+    #       - worker
+    #   register: gce
+    #
+    # - name: Save host data
+    #   add_host:
+    #     hostname: "{{ item.public_ip }}"
+    #     groupname: controllers
+    #   with_items: "{{ gce.instance_data }}"
+    #
+    # - name: Wait for SSH for instances
+    #   wait_for:
+    #     delay: 1
+    #     host: "{{ item.public_ip }}"
+    #     port: 22
+    #     state: started
+    #     timeout: 30
+    #   with_items: "{{ gce.instance_data }}"
+    #
+
+
+    # - name: Configure Hosts
+    #   hosts: gce_instances_ips
+    #   become: yes
+    #   become_method: sudo
+    #   roles:
+    #     - my-role-one
+    #     - my-role-two
+    #   tags:
+    #     - config
+    #
+    # - name: delete test-instances
+    #   # Basic termination of instance.
+    #   gce:
+    #     service_account_email: "{{ service_account_email }}"
+    #     credentials_file: "{{ credentials_file }}"
+    #     project_id: "{{ project_id }}"
+    #     instance_names: "{{ gce.instance_names }}"
+    #     zone: us-central1-a
+    #     state: absent
+    #   tags:
+    #     - delete

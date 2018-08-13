@@ -1,0 +1,74 @@
+---
+# Full creation example with subnets and optional availability zones.
+# The absence or presence of subnets deletes or creates them respectively.
+  tasks:
+    - name: Create kubernetes-the-hard-way Network
+      ec2_vpc:
+        state: present
+        cidr_block: 10.240.0.0/24
+        resource_tags: { "Environment":"Development" }
+        subnets:
+          - cidr: 172.22.1.0/24
+            az: us-west-2c
+            resource_tags: { "Environment":"Dev", "Tier" : "Web" }
+          - cidr: 172.22.2.0/24
+            az: us-west-2b
+            resource_tags: { "Environment":"Dev", "Tier" : "App" }
+          - cidr: 172.22.3.0/24
+            az: us-west-2a
+            resource_tags: { "Environment":"Dev", "Tier" : "DB" }
+        internet_gateway: True
+        route_tables:
+          - subnets:
+              - 172.22.2.0/24
+              - 172.22.3.0/24
+            routes:
+              - dest: 0.0.0.0/0
+                gw: igw
+          - subnets:
+              - 172.22.1.0/24
+            routes:
+              - dest: 0.0.0.0/0
+                gw: igw
+        region: us-west-2
+      register: vpc
+
+
+
+
+          name: kubernetes-the-hard-way
+          mode: custom
+          subnet_name: "kubernetes"
+          subnet_region: "{{ region }}"
+          ipv4_range: '10.240.0.0/24'
+
+    - name: Create a firewall rule that allows internal communication across all protocols
+      gce_net:
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        name: kubernetes-the-hard-way
+        fwname: "kubernetes-the-hard-way-allow-internal"
+        allowed: tcp;udp;icmp
+        state: "present"
+        src_range: ['10.240.0.0/24','10.200.0.0/16']
+
+    - name: Create a firewall rule that allows external SSH, ICMP, and HTTPS
+      gce_net:
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        name: kubernetes-the-hard-way
+        fwname: "kubernetes-the-hard-way-allow-external"
+        allowed: tcp:22;tcp:6443;icmp
+        state: "present"
+        src_range: ['0.0.0.0/0']
+
+      name: Allocate a static IP address that will be attached to the external load balancer
+    - gce_eip:
+        service_account_email: "{{ service_account_email }}"
+        credentials_file: "{{ credentials_file }}"
+        project_id: "{{ project_id }}"
+        name: kubernetes-the-hard-way
+        region: "{{ region }}"
+        state: present
