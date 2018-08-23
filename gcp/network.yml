@@ -5,10 +5,10 @@
   connection: local
 #https://docs.ansible.com/ansible/2.5/modules/gce_net_module.html
   vars:
-    service_account_email: test-289@mm-k8s-hard-way.iam.gserviceaccount.com
-    credentials_file: /home/miko/git/ansible/mm-k8s-hard-way-84f07b888437.json
-    project_id: mm-k8s-hard-way
     region: us-west1
+    zone: us-west1-c
+  vars_files:
+    - "vars/gce_auth.yml"
 
   tasks:
     - name: Create kubernetes-the-hard-way Custom Network

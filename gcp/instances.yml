@@ -28,19 +28,29 @@
           - controller
       register: gce
 
+    - name: Wait for SSH to come up
+      wait_for: host={{ item.public_ip }} port=22 delay=10 timeout=60
+      with_items: "{{ gce.instance_data }}"
+
+    - name: Add host to Controllers group
+      add_host: hostname={{ item.public_ip }} groupname=controllers
+      with_items: "{{ gce.instance_data }}"
+
     - name: Create 3 Kubernetes Workers
       gce:
         service_account_email: "{{ service_account_email }}"
         credentials_file: "{{ credentials_file }}"
         project_id: "{{ project_id }}"
         zone: "{{ zone }}"
-        name: worker-{{ item }}
+        name: worker
+        num_instances: 3
         machine_type: n1-standard-1
         disk_size: 100
         image_family: ubuntu-1804-lts
         ip_forward: true
         state: present
-        metadata: '{"pod-cidr":"10.200.{{ item }}.0/24"}'
+        metadata: '{"pod-cidr":"10.200.2X.0/24"}' #- set_fact: private_ip={{gce.instance_data[0].private_ip}}
+        #metadata: '{"pod-cidr":"{{gce.instance_data[0].private_ip}}"}' - get private IP from registered instances
         service_account_permissions: compute-rw,storage-ro,service-management,service-control,logging-write,monitoring
         network: kubernetes-the-hard-way
         subnetwork: kubernetes
@@ -48,10 +58,18 @@
           - kubernetes-the-hard-way
           - worker
       register: gce
-      with_items:
-         - 0
-         - 1
-         - 2
+
+    - name: Wait for SSH to come up
+      wait_for: host={{ item.public_ip }} port=22 delay=10 timeout=60
+      with_items: "{{ gce.instance_data }}"
+
+    - name: Add host to Workers group
+      add_host: hostname={{ item.public_ip }} groupname=workers
+      with_items: "{{ gce.instance_data }}"
+
+
+
+
     # - name: Create 3 Kubernetes Workers
     #   gce:
     #     service_account_email: "{{ service_account_email }}"
